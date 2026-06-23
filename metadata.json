@@ -1,0 +1,5 @@
+{
+  "name": "Yaver",
+  "description": "Sipariş verilerini etiketlere dönüştüren ve kumaş ihtiyacını hesaplayan yardımcı asistan.",
+  "requestFramePermissions": []
+}
