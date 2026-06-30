@@ -9,6 +9,7 @@ interface Order {
   lineDirection: string;
   extraInfo: string;
   dimensions: string;
+  status?: string;
 }
 
 /**
@@ -32,7 +33,7 @@ function sanitizeText(text: string): string {
     .replace(/Ü/g, 'U');
 }
 
-export function generateOrdersPdf(orders: Order[], dateStr: string, filename: string, mode: 'production' | 'warehouse' = 'production') {
+export function generateOrdersPdf(orders: Order[], dateStr: string, filename: string, mode: 'production' | 'warehouse' = 'production', producerName?: string) {
   // Create instance of jsPDF (A4 Portrait, millimeters)
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -88,6 +89,15 @@ export function generateOrdersPdf(orders: Order[], dateStr: string, filename: st
     : 'DEPO RAPORU (Paket Onayli)';
   doc.text(sanitizeText(reportTypeLabel), margin + 25, 45);
 
+  let startY = 50;
+  if (producerName && mode === 'production') {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Uretici:', margin, 50);
+    doc.setFont('helvetica', 'normal');
+    doc.text(sanitizeText(producerName), margin + 25, 50);
+    startY = 55;
+  }
+
   // Right aligned summary card in header
   const countText = `Toplam: ${orders.length} Adet Siparis`;
   doc.setFont('helvetica', 'bold');
@@ -102,8 +112,8 @@ export function generateOrdersPdf(orders: Order[], dateStr: string, filename: st
 
   // --- Build Table Data ---
   const headers = mode === 'production'
-    ? [['Sira', 'Siparis No', 'Kumas Kodu', 'Kumas Yonu', 'Ek Bilgi', 'Olculer', 'Sunger', 'Urun']]
-    : [['Sira', 'Siparis No', 'Musteri Adi', 'Kumas Kodu', 'Kumas Yonu', 'Ek Bilgi', 'Olculer', 'Paket']];
+    ? [['Sira', 'Siparis No', 'Kumas Kodu', 'Kumas Yonu', 'Ek Bilgi', 'Olculer', 'Asama', 'Sunger', 'Urun']]
+    : [['Sira', 'Siparis No', 'Musteri Adi', 'Kumas Kodu', 'Kumas Yonu', 'Ek Bilgi', 'Olculer', 'Asama', 'Paket']];
   
   const body = orders.map((order, index) => {
     if (mode === 'production') {
@@ -114,6 +124,7 @@ export function generateOrdersPdf(orders: Order[], dateStr: string, filename: st
         sanitizeText(order.lineDirection),
         sanitizeText(order.extraInfo),
         sanitizeText(order.dimensions),
+        sanitizeText(order.status || 'Kuyrukta'),
         '[   ]',  // Empty box for sponge tick
         '[   ]'   // Empty box for product tick
       ];
@@ -126,6 +137,7 @@ export function generateOrdersPdf(orders: Order[], dateStr: string, filename: st
         sanitizeText(order.lineDirection),
         sanitizeText(order.extraInfo),
         sanitizeText(order.dimensions),
+        sanitizeText(order.status || 'Kuyrukta'),
         '[   ]'   // Empty box for package tick
       ];
     }
@@ -133,7 +145,7 @@ export function generateOrdersPdf(orders: Order[], dateStr: string, filename: st
 
   // --- Render Table using jspdf-autotable ---
   autoTable(doc, {
-    startY: 53,
+    startY: startY,
     head: headers,
     body: body,
     theme: 'grid',
@@ -151,23 +163,25 @@ export function generateOrdersPdf(orders: Order[], dateStr: string, filename: st
       lineColor: [40, 40, 40]
     },
     columnStyles: mode === 'production' ? {
-      0: { cellWidth: 12, halign: 'center' }, // Sira (centered header & body, fits perfectly with width 12 and padding 2)
-      1: { cellWidth: 22, fontStyle: 'bold' }, // Order ID
-      2: { cellWidth: 25 },                   // Fabric Code
-      3: { cellWidth: 23 },                   // Direction
-      4: { cellWidth: 25 },                   // Extra Info
+      0: { cellWidth: 10, halign: 'center' }, // Sira
+      1: { cellWidth: 18, fontStyle: 'bold' }, // Order ID
+      2: { cellWidth: 22 },                   // Fabric Code
+      3: { cellWidth: 20 },                   // Direction
+      4: { cellWidth: 22 },                   // Extra Info
       5: { cellWidth: 'auto', fontStyle: 'bold' }, // Dimensions
-      6: { cellWidth: 18, halign: 'center', fontStyle: 'bold' }, // Sunger tick (increased to 18 to fit header 'Sunger' perfectly without wrap)
-      7: { cellWidth: 16, halign: 'center', fontStyle: 'bold' }  // Urun tick (increased to 16 to fit header 'Urun' perfectly without wrap)
+      6: { cellWidth: 18, halign: 'center' }, // Asama
+      7: { cellWidth: 15, halign: 'center', fontStyle: 'bold' }, // Sunger tick
+      8: { cellWidth: 13, halign: 'center', fontStyle: 'bold' }  // Urun tick
     } : {
-      0: { cellWidth: 12, halign: 'center' }, // Sira (centered header & body, fits perfectly with width 12 and padding 2)
-      1: { cellWidth: 20, fontStyle: 'bold' }, // Order ID
-      2: { cellWidth: 35, fontStyle: 'bold' }, // Customer Name
-      3: { cellWidth: 22 },                   // Fabric Code
-      4: { cellWidth: 20 },                   // Direction
-      5: { cellWidth: 22 },                   // Extra Info
+      0: { cellWidth: 10, halign: 'center' }, // Sira
+      1: { cellWidth: 18, fontStyle: 'bold' }, // Order ID
+      2: { cellWidth: 28, fontStyle: 'bold' }, // Customer Name
+      3: { cellWidth: 20 },                   // Fabric Code
+      4: { cellWidth: 18 },                   // Direction
+      5: { cellWidth: 18 },                   // Extra Info
       6: { cellWidth: 'auto', fontStyle: 'bold' }, // Dimensions
-      7: { cellWidth: 18, halign: 'center', fontStyle: 'bold' }  // Paket tick (increased to 18 to fit header 'Paket' perfectly without wrap)
+      7: { cellWidth: 18, halign: 'center' }, // Asama
+      8: { cellWidth: 15, halign: 'center', fontStyle: 'bold' }  // Paket tick
     },
     alternateRowStyles: {
       fillColor: [252, 252, 250]

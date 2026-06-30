@@ -39,6 +39,7 @@ export interface Order {
   extraInfo: string;
   dimensions: string;
   pool?: 'B' | 'D' | string | null;
+  status?: string;
 }
 
 export interface FabricDefinition {
@@ -141,6 +142,7 @@ export const UnifiedLibrary: React.FC<UnifiedLibraryProps> = ({
     unifiedFabrics.forEach(uf => {
       let total = 0;
       orders.forEach(order => {
+        if (order.status !== 'Bekleme') return;
         const orderCode = order.fabricCode.trim().toUpperCase();
         const orderPool = (order.pool && order.pool.toUpperCase() === 'D') ? 'D' : 'B';
 

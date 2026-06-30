@@ -20,7 +20,8 @@ import {
   Filter,
   Save,
   CheckCircle2,
-  UserCheck
+  UserCheck,
+  Menu
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { jsPDF } from 'jspdf';
@@ -48,6 +49,7 @@ interface FabricDefinition {
 
 interface FabricCalculatorProps {
   orders: Order[];
+  onOpenMenu?: () => void;
 }
 
 /**
@@ -70,7 +72,7 @@ function sanitizeText(text: string): string {
     .replace(/Ü/g, 'U');
 }
 
-export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ orders }) => {
+export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ orders, onOpenMenu }) => {
   // Navigation: Requirements summary analysis vs fabric database catalog
   const [activeSubTab, setActiveSubTab] = useState<'analysis' | 'database' | 'unified'>(() => {
     return orders && orders.length > 0 ? 'analysis' : 'unified';
@@ -404,6 +406,7 @@ export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ orders }) =>
     const groups: { [key: string]: { fabricCode: string; pool: 'B' | 'D'; totalMeters: number; count: number; orders: Order[] } } = {};
 
     orders.forEach(order => {
+      if (order.status !== 'Bekleme') return;
       const code = order.fabricCode.trim().toUpperCase() || 'BELİRTİLMEMİŞ';
       // Suffix is B or D, default to B if null
       const p = (order.pool && (order.pool.toUpperCase() === 'B' || order.pool.toUpperCase() === 'D'))
@@ -806,48 +809,66 @@ export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ orders }) =>
     <div className="flex-1 bg-[#F5F5F0] flex flex-col h-full min-h-0 overflow-hidden">
       
       {/* Sub-navigation Header */}
-      <header className="h-16 bg-white border-b border-black/5 px-8 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-6">
-          <div className="flex flex-col">
+      <header className="h-16 bg-white border-b border-black/5 px-3 md:px-8 flex items-center justify-between shrink-0 gap-2">
+        <div className="flex items-center gap-2 md:gap-6 min-w-0">
+          {onOpenMenu && (
+            <button
+              onClick={onOpenMenu}
+              className="p-2 hover:bg-[#F5F5F0] rounded-xl text-black/60 hover:text-black transition-colors shrink-0"
+              title="Menüyü Aç"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
+          <div className="hidden lg:flex flex-col shrink-0">
             <span className="text-[10px] font-black uppercase text-black/30 tracking-widest leading-none">ÇİFT HAVUZLU SİSTEM</span>
             <span className="text-sm font-extrabold text-black mt-0.5">Kumaş & Barkod Entegrasyonu</span>
           </div>
 
           {/* Sub Navigation Tabs */}
-          <div className="flex bg-[#F5F5F0] p-1 rounded-xl h-10 ml-2">
+          <div className="flex bg-[#F5F5F0] p-1 rounded-xl h-10 ml-0 sm:ml-2 overflow-x-auto scrollbar-none min-w-0 shrink-0">
             <button
               onClick={() => setActiveSubTab('analysis')}
               className={cn(
-                "px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5",
+                "px-2 sm:px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 whitespace-nowrap",
                 activeSubTab === 'analysis' ? "bg-white text-black shadow-sm" : "text-black/40 hover:text-black/60"
               )}
             >
-              <Calculator className="w-3.5 h-3.5" />
-              <span>Metraj Analizi</span>
+              <Calculator className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                <span className="hidden xs:inline">Metraj Analizi</span>
+                <span className="xs:hidden">Metraj</span>
+              </span>
             </button>
             <button
               onClick={() => setActiveSubTab('database')}
               className={cn(
-                "px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5",
+                "px-2 sm:px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 whitespace-nowrap",
                 activeSubTab === 'database' ? "bg-white text-black shadow-sm" : "text-black/40 hover:text-black/60"
               )}
             >
-              <Database className="w-3.5 h-3.5" />
-              <span>Kumaş Kütüphanesi</span>
-              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none bg-black/5 text-black/40">
+              <Database className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                <span className="hidden xs:inline">Kumaş Kütüphanesi</span>
+                <span className="xs:hidden">Kütüphane</span>
+              </span>
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none bg-black/5 text-black/40 shrink-0">
                 {savedFabrics.length}
               </span>
             </button>
             <button
               onClick={() => setActiveSubTab('unified')}
               className={cn(
-                "px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5",
+                "px-2 sm:px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 whitespace-nowrap",
                 activeSubTab === 'unified' ? "bg-white text-black shadow-sm" : "text-black/40 hover:text-black/60"
               )}
             >
-              <Layers className="w-3.5 h-3.5 text-black" />
-              <span>Ana Kumaş Kütüphanesi</span>
-              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none bg-black/5 text-black/40">
+              <Layers className="w-3.5 h-3.5 text-black shrink-0" />
+              <span>
+                <span className="hidden xs:inline">Ana Kumaş Kütüphanesi</span>
+                <span className="xs:hidden">Ana Kütüphane</span>
+              </span>
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none bg-black/5 text-black/40 shrink-0">
                 {unifiedFabrics.length}
               </span>
             </button>
@@ -855,15 +876,16 @@ export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ orders }) =>
         </div>
 
         {/* Action button */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {activeSubTab !== 'database' && (
             <button
               onClick={exportSummaryToPdf}
-              className="bg-black hover:bg-neutral-950 text-white font-extrabold text-xs h-9 px-4 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+              className="bg-black hover:bg-neutral-950 text-white font-extrabold text-xs h-9 px-2 sm:px-4 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
               title="Kumaş ihtiyaç özetini barkodları ile birlikte resimli PDF döküm olarak indirir"
             >
-              <Download className="w-3.5 h-3.5" />
-              <span>Kumaş Gereksinimi PDF</span>
+              <Download className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden xs:inline">Kumaş Gereksinimi PDF</span>
+              <span className="xs:hidden">PDF</span>
             </button>
           )}
         </div>
@@ -1387,11 +1409,11 @@ export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ orders }) =>
                     </div>
                     
                     {/* Database tab local pool filters */}
-                    <div className="flex bg-[#F5F5F0] p-0.5 rounded-lg border border-black/5">
+                    <div className="flex bg-[#F5F5F0] p-0.5 rounded-lg border border-black/5 overflow-x-auto scrollbar-none shrink-0 max-w-full">
                       <button
                         onClick={() => setDbPoolFilter('ALL')}
                         className={cn(
-                          "px-2.5 py-1 rounded text-[10px] font-black uppercase cursor-pointer",
+                          "px-2.5 py-1 rounded text-[10px] font-black uppercase cursor-pointer whitespace-nowrap shrink-0",
                           dbPoolFilter === 'ALL' ? "bg-white text-black shadow-sm" : "text-black/40 hover:text-black/60"
                         )}
                       >
@@ -1400,7 +1422,7 @@ export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ orders }) =>
                       <button
                         onClick={() => setDbPoolFilter('B')}
                         className={cn(
-                          "px-2.5 py-1 rounded text-[10px] font-black uppercase cursor-pointer",
+                          "px-2.5 py-1 rounded text-[10px] font-black uppercase cursor-pointer whitespace-nowrap shrink-0",
                           dbPoolFilter === 'B' ? "bg-cyan-600 text-white shadow-sm" : "text-black/40 hover:text-black/60"
                         )}
                       >
@@ -1409,7 +1431,7 @@ export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ orders }) =>
                       <button
                         onClick={() => setDbPoolFilter('D')}
                         className={cn(
-                          "px-2.5 py-1 rounded text-[10px] font-black uppercase cursor-pointer",
+                          "px-2.5 py-1 rounded text-[10px] font-black uppercase cursor-pointer whitespace-nowrap shrink-0",
                           dbPoolFilter === 'D' ? "bg-violet-600 text-white shadow-sm" : "text-black/40 hover:text-black/60"
                         )}
                       >
@@ -1431,8 +1453,8 @@ export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ orders }) =>
                   </div>
 
                   {/* DB Listing Table */}
-                  <div className="border border-black/5 rounded-2xl overflow-hidden shadow-sm">
-                    <table className="w-full text-left text-xs">
+                  <div className="border border-black/5 rounded-2xl overflow-x-auto shadow-sm">
+                    <table className="w-full text-left text-xs min-w-[700px]">
                       <thead>
                         <tr className="bg-[#F5F5F0] border-b border-black/5 text-black/50 font-extrabold text-[9px] uppercase tracking-widest">
                           <th className="py-3.5 px-4 w-20 text-center">HAVUZ</th>

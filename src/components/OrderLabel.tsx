@@ -19,9 +19,10 @@ interface OrderLabelProps {
     height: number;
     hideCustomerNames?: boolean;
   };
+  onChange?: (fields: Partial<Order>) => void;
 }
 
-export const OrderLabel: React.FC<OrderLabelProps> = ({ order, className, settings }) => {
+export const OrderLabel: React.FC<OrderLabelProps> = ({ order, className, settings, onChange }) => {
   // Calculate scale factor based on 100mm reference size
   const scale = Math.min(settings.width, settings.height) / 100;
 
@@ -77,18 +78,28 @@ export const OrderLabel: React.FC<OrderLabelProps> = ({ order, className, settin
             </div>
             <div 
               className={cn(
-                "px-3 py-1 rounded-lg shrink-0 border-2",
+                "px-3 py-1 rounded-lg shrink-0 border-2 flex items-center justify-center",
                 isUrgent ? "bg-white text-black border-black" : "bg-black text-white border-black"
               )}
             >
-              <p className="text-xl font-bold" style={{ color: isUrgent ? '#000000' : '#ffffff' }}>{order.orderId}</p>
+              {onChange ? (
+                <input
+                  type="text"
+                  value={order.orderId}
+                  onChange={(e) => onChange({ orderId: e.target.value })}
+                  className="bg-transparent border-none font-bold text-center outline-none focus:ring-1 focus:ring-black w-24 text-xl leading-none"
+                  style={{ color: isUrgent ? '#000000' : '#ffffff' }}
+                />
+              ) : (
+                <p className="text-xl font-bold" style={{ color: isUrgent ? '#000000' : '#ffffff' }}>{order.orderId}</p>
+              )}
             </div>
           </div>
 
           {/* Urgent Banner if orderId starts with # */}
           {isUrgent && (
             <div 
-              className="mt-2.5 bg-white border-2 border-black text-black font-black text-center py-2 rounded-lg tracking-[0.25em] text-xl leading-none"
+              className="mt-2.5 bg-white border-2 border-black text-black font-black text-center py-2 rounded-lg tracking-[0.25em] text-xl leading-none animate-pulse"
               style={{
                 fontSize: `${scale * 18}px`,
                 color: '#000000',
@@ -105,11 +116,22 @@ export const OrderLabel: React.FC<OrderLabelProps> = ({ order, className, settin
           
           {/* Customer Name block - Completely hidden when hideCustomerNames is active */}
           {!settings.hideCustomerNames && (
-            <div className="min-w-0 flex flex-col items-start">
+            <div className="min-w-0 flex flex-col items-start w-full">
               <p className="text-[9px] font-bold uppercase text-black mb-1" style={{ fontSize: `${Math.max(6.5, scale * 8.5)}px`, color: '#000000' }}>Müşteri Adı</p>
-              <span className="text-xl font-bold uppercase leading-tight break-words line-clamp-1 pb-1 border-b-2" style={{ borderBottom: '2px solid #000000', color: '#000000' }}>
-                {order.customerName}
-              </span>
+              {onChange ? (
+                <input
+                  type="text"
+                  value={order.customerName}
+                  onChange={(e) => onChange({ customerName: e.target.value })}
+                  className="w-full bg-transparent border-0 border-b-2 border-black font-bold uppercase text-xl leading-tight pb-1 outline-none focus:bg-black/[0.02] transition-colors"
+                  style={{ color: '#000000' }}
+                  title="Doğrudan düzenlemek için tıklayın"
+                />
+              ) : (
+                <span className="text-xl font-bold uppercase leading-tight break-words line-clamp-1 pb-1 border-b-2 block w-full" style={{ borderBottom: '2px solid #000000', color: '#000000' }}>
+                  {order.customerName}
+                </span>
+              )}
             </div>
           )}
 
@@ -117,33 +139,77 @@ export const OrderLabel: React.FC<OrderLabelProps> = ({ order, className, settin
           <div className={cn("grid gap-2", isLongFabric ? "grid-cols-1" : "grid-cols-2")} style={{ gap: `${scale * 1}rem` }}>
             <div className="min-w-0 flex flex-col items-start w-full">
               <p className="text-[9px] font-bold uppercase text-black mb-1" style={{ fontSize: `${Math.max(6.5, scale * 8.5)}px`, color: '#000000' }}>Kumaş Kodu</p>
-              <span className={cn("text-xl font-bold pb-1 border-b-2 block w-full", isLongFabric ? "break-words" : "truncate")} style={{ borderBottom: '2px solid #000000', color: '#000000' }}>
-                {order.fabricCode}
-              </span>
+              {onChange ? (
+                <input
+                  type="text"
+                  value={order.fabricCode}
+                  onChange={(e) => onChange({ fabricCode: e.target.value })}
+                  className="w-full bg-transparent border-0 border-b-2 border-black font-bold text-xl pb-1 outline-none focus:bg-black/[0.02] transition-colors"
+                  style={{ color: '#000000' }}
+                  title="Doğrudan düzenlemek için tıklayın"
+                />
+              ) : (
+                <span className={cn("text-xl font-bold pb-1 border-b-2 block w-full", isLongFabric ? "break-words" : "truncate")} style={{ borderBottom: '2px solid #000000', color: '#000000' }}>
+                  {order.fabricCode}
+                </span>
+              )}
             </div>
             <div className="min-w-0 flex flex-col items-start w-full">
               <p className="text-[9px] font-bold uppercase text-black mb-1" style={{ fontSize: `${Math.max(6.5, scale * 8.5)}px`, color: '#000000' }}>Kumaş Yönü</p>
-              <span className={cn("text-xl font-bold uppercase pb-1 border-b-2 block w-full", isLongFabric ? "break-words" : "truncate")} style={{ borderBottom: '2px solid #000000', color: '#000000' }}>
-                {order.lineDirection}
-              </span>
+              {onChange ? (
+                <input
+                  type="text"
+                  value={order.lineDirection}
+                  onChange={(e) => onChange({ lineDirection: e.target.value })}
+                  className="w-full bg-transparent border-0 border-b-2 border-black font-bold uppercase text-xl pb-1 outline-none focus:bg-black/[0.02] transition-colors"
+                  style={{ color: '#000000' }}
+                  title="Doğrudan düzenlemek için tıklayın"
+                />
+              ) : (
+                <span className={cn("text-xl font-bold uppercase pb-1 border-b-2 block w-full", isLongFabric ? "break-words" : "truncate")} style={{ borderBottom: '2px solid #000000', color: '#000000' }}>
+                  {order.lineDirection}
+                </span>
+              )}
             </div>
           </div>
 
           {/* Dimensions Row */}
-          <div className="min-w-0 flex flex-col items-start">
+          <div className="min-w-0 flex flex-col items-start w-full">
             <p className="text-[9px] font-bold uppercase text-black mb-1" style={{ fontSize: `${Math.max(6.5, scale * 8.5)}px`, color: '#000000' }}>Ürün Boyutları</p>
-            <span className="text-2xl font-mono font-bold truncate leading-none pb-1 border-b-2" style={{ borderBottom: '2px solid #000000', color: '#000000' }}>
-              {order.dimensions}
-            </span>
+            {onChange ? (
+              <input
+                type="text"
+                value={order.dimensions}
+                onChange={(e) => onChange({ dimensions: e.target.value })}
+                className="w-full bg-transparent border-0 border-b-2 border-black font-mono font-bold text-2xl pb-1 outline-none focus:bg-black/[0.02] transition-colors"
+                style={{ color: '#000000' }}
+                title="Doğrudan düzenlemek için tıklayın"
+              />
+            ) : (
+              <span className="text-2xl font-mono font-bold truncate leading-none pb-1 border-b-2 block w-full" style={{ borderBottom: '2px solid #000000', color: '#000000' }}>
+                {order.dimensions}
+              </span>
+            )}
           </div>
 
           {/* Extra Info - Outer border/dashed line and padding completely removed */}
-          <div className="min-h-0 flex flex-col justify-start mt-1">
+          <div className="min-h-0 flex flex-col justify-start mt-1 w-full">
             <p className="text-[9px] font-bold uppercase text-black mb-1" style={{ fontSize: `${Math.max(6.5, scale * 8.5)}px`, color: '#000000' }}>Ek Bilgi</p>
-            <div className="min-h-[40px] overflow-hidden flex items-start">
-              <p className="text-sm font-semibold italic text-black leading-snug break-words w-full" style={{ color: '#000000' }}>
-                {order.extraInfo && order.extraInfo !== '-' ? order.extraInfo : ''}
-              </p>
+            <div className="min-h-[45px] overflow-hidden flex items-start w-full">
+              {onChange ? (
+                <textarea
+                  value={order.extraInfo === '-' ? '' : order.extraInfo}
+                  onChange={(e) => onChange({ extraInfo: e.target.value })}
+                  placeholder="Ek bilgi girmek için tıklayın..."
+                  className="w-full bg-transparent border-b border-black/10 font-semibold italic text-sm leading-snug outline-none resize-none focus:bg-black/[0.02] focus:border-black/30 h-full placeholder:text-gray-400"
+                  style={{ color: '#000000' }}
+                  rows={2}
+                />
+              ) : (
+                <p className="text-sm font-semibold italic text-black leading-snug break-words w-full" style={{ color: '#000000' }}>
+                  {order.extraInfo && order.extraInfo !== '-' ? order.extraInfo : ''}
+                </p>
+              )}
             </div>
           </div>
         </div>

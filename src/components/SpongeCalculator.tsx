@@ -10,7 +10,8 @@ import {
   Sparkles,
   HelpCircle,
   Download,
-  Printer
+  Printer,
+  Menu
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { jsPDF } from 'jspdf';
@@ -27,6 +28,7 @@ interface Order {
 
 interface SpongeCalculatorProps {
   orders: Order[];
+  onOpenMenu?: () => void;
 }
 
 interface PlacedRect {
@@ -98,7 +100,7 @@ function sanitizeText(text: string): string {
     .replace(/Ü/g, 'U');
 }
 
-export const SpongeCalculator: React.FC<SpongeCalculatorProps> = ({ orders }) => {
+export const SpongeCalculator: React.FC<SpongeCalculatorProps> = ({ orders, onOpenMenu }) => {
   // Group tab states: 5 cm, 8 cm, 10 cm, Other
   const [activeThickness, setActiveThickness] = useState<string>('10');
 
@@ -142,6 +144,7 @@ export const SpongeCalculator: React.FC<SpongeCalculatorProps> = ({ orders }) =>
   const parsedItems = useMemo<PackableItem[]>(() => {
     return orders
       .filter(order => {
+        if (order.status !== 'Bekleme') return false;
         const extraLower = (order.extraInfo || '').trim().toLowerCase();
         // Check if the extra info mentions "süngerli" or "sünger", but not "süngersiz"
         const isSungerli = (extraLower.includes('sünger') || extraLower.includes('sunger')) &&
@@ -1003,26 +1006,34 @@ export const SpongeCalculator: React.FC<SpongeCalculatorProps> = ({ orders }) =>
   return (
     <div className="flex-1 bg-[#F5F5F0] flex flex-col h-full min-h-0 overflow-hidden">
       {/* Upper Module Bar */}
-      <header className="h-16 bg-white border-b border-black/5 px-8 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-6">
+      <header className="h-16 bg-white border-b border-black/5 px-3 md:px-8 flex items-center justify-between shrink-0 gap-2">
+        <div className="flex items-center gap-2 md:gap-6 min-w-0">
+          {onOpenMenu && (
+            <button
+              onClick={onOpenMenu}
+              className="p-2 hover:bg-[#F5F5F0] rounded-xl text-black/60 hover:text-black transition-colors shrink-0"
+              title="Menüyü Aç"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
           {/* Title Badge / Context */}
-          <div className="flex flex-col">
+          <div className="hidden lg:flex flex-col shrink-0">
             <span className="text-[10px] font-black uppercase text-black/30 tracking-widest leading-none">YAVER MODÜL</span>
             <span className="text-sm font-extrabold text-black mt-0.5">Sünger Yerleşim Planlayıcı</span>
           </div>
 
-          <div className="flex items-center gap-2 bg-emerald-50 px-3.5 py-1.5 rounded-xl border border-emerald-100 text-emerald-800">
+          <div className="hidden xl:flex items-center gap-2 bg-emerald-50 px-3.5 py-1.5 rounded-xl border border-emerald-100 text-emerald-800 shrink-0">
             <Sparkles className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
             <span className="text-xs font-bold">%90+ Hedef Verimlilik</span>
           </div>
         </div>
         
         {/* Thickness choices tab header and action buttons */}
-        <div className="flex items-center gap-4">
-          <div className="flex bg-[#F5F5F0] p-1 rounded-xl h-9">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+          <div className="flex bg-[#F5F5F0] p-1 rounded-xl h-9 overflow-x-auto scrollbar-none min-w-0 shrink-0">
             {['5', '8', '10', 'other'].map((thickness) => {
               const count = (groupedItems[thickness] || []).length;
-              const label = thickness === 'other' ? 'Diğer' : `${thickness} cm`;
               return (
                 <button
                   key={thickness}
@@ -1031,16 +1042,23 @@ export const SpongeCalculator: React.FC<SpongeCalculatorProps> = ({ orders }) =>
                     setHoveredItemId(null);
                   }}
                   className={cn(
-                    "px-3.5 py-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5",
+                    "px-2 sm:px-3.5 py-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1 sm:gap-1.5 whitespace-nowrap",
                     activeThickness === thickness
                       ? "bg-white text-black shadow-sm"
                       : "text-black/40 hover:text-black/60"
                   )}
                 >
-                  <span>{label}</span>
+                  <span>
+                    {thickness === 'other' ? 'Diğer' : (
+                      <>
+                        <span className="hidden xs:inline">{thickness} cm</span>
+                        <span className="xs:hidden">{thickness}</span>
+                      </>
+                    )}
+                  </span>
                   {count > 0 && (
                     <span className={cn(
-                      "px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none",
+                      "px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none shrink-0",
                       activeThickness === thickness ? "bg-black text-white" : "bg-black/10 text-black/40"
                     )}>
                       {count}
@@ -1052,26 +1070,31 @@ export const SpongeCalculator: React.FC<SpongeCalculatorProps> = ({ orders }) =>
           </div>
 
           {/* Action buttons aligned to h-9 header size with vertical separator */}
-          <div className="flex items-center gap-2 pl-4 border-l border-neutral-200">
+          <div className="flex items-center gap-1.5 sm:gap-2 pl-2 sm:pl-4 border-l border-neutral-200 shrink-0">
             {totalStandardItemsCount > 0 && (
               <button
                 onClick={exportAllToPdf}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs h-9 px-4 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                className="bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs h-9 px-2.5 sm:px-4 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
                 title="Standart kalınlıkların (5, 8 ve 10 cm) yerleşim planlarını tek bir PDF dosyasında toplu olarak indirir (Diğer kalınlıklar dâhil edilmez)"
               >
-                <Download className="w-3.5 h-3.5" />
-                <span>Toplu PDF</span>
+                <Download className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">Toplu PDF</span>
+                <span className="sm:hidden">Toplu</span>
               </button>
             )}
 
             {currentGroupItems.length > 0 && (
               <button
                 onClick={exportToPdf}
-                className="bg-black hover:bg-neutral-900 text-white font-extrabold text-xs h-9 px-4 rounded-xl shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-95"
+                className="bg-black hover:bg-neutral-900 text-white font-extrabold text-xs h-9 px-2.5 sm:px-4 rounded-xl shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 whitespace-nowrap"
                 title="Aktif kalınlığın yerleşim ve kesim çizimlerini PDF olarak indir"
               >
-                <Download className="w-3.5 h-3.5" />
-                <span>Aktif Planı İndir</span>
+                <Download className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  <span className="hidden md:inline">Aktif Planı İndir</span>
+                  <span className="hidden sm:inline md:hidden">Planı İndir</span>
+                  <span className="sm:hidden">İndir</span>
+                </span>
               </button>
             )}
           </div>
