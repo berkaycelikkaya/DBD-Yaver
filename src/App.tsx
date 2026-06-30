@@ -52,20 +52,6 @@ import { SupplyPanel } from './components/SupplyPanel';
 import { cn } from './lib/utils';
 import { generateOrdersPdf } from './lib/pdfGenerator';
 import {
-  subscribeUsers,
-  subscribeOrders,
-  subscribeLogs,
-  subscribeSettings,
-  saveOrdersInBatch,
-  saveLogsInBatch,
-  saveUsersInBatch,
-  savePrintSettingsInFirestore,
-  saveProducerPricesInFirestore,
-  saveFabricsInFirestore,
-  saveSpongeSizesInFirestore,
-  checkAndSeedLocalStorageToFirestore
-} from './firebase';
-import {
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -103,20 +89,6 @@ interface SavedLog {
   filename: string;
   producerName?: string;
 }
-
-const normalizeText = (str: string): string => {
-  if (!str) return '';
-  return str
-    .trim()
-    .toLowerCase()
-    .replace(/ı/g, 'i')
-    .replace(/ğ/g, 'g')
-    .replace(/ü/g, 'u')
-    .replace(/ş/g, 's')
-    .replace(/ö/g, 'o')
-    .replace(/ç/g, 'c')
-    .replace(/i̇/g, 'i'); // handles combined dotted i
-};
 
 export default function App() {
   // Sync core state with local storage right on initialization for maximum reliability
@@ -221,7 +193,7 @@ export default function App() {
         { id: '4', username: 'tedarik', password: '123', role: 'Tedarik' }
       ];
     } else {
-      const berkayIndex = loadedUsers.findIndex(u => u && u.username && normalizeText(u.username) === 'berkay');
+      const berkayIndex = loadedUsers.findIndex(u => u.username.toLowerCase() === 'berkay');
       if (berkayIndex > -1) {
         loadedUsers[berkayIndex].password = '159951';
         loadedUsers[berkayIndex].role = 'Admin';
@@ -279,87 +251,7 @@ export default function App() {
   // Sync producer prices to localStorage
   useEffect(() => {
     localStorage.setItem('yaver_producer_prices', JSON.stringify(producerPrices));
-    const serialized = JSON.stringify(producerPrices);
-    if (serialized !== lastFirestorePricesRef.current) {
-      lastFirestorePricesRef.current = serialized;
-      saveProducerPricesInFirestore(producerPrices);
-    }
   }, [producerPrices]);
-
-  // Local storage backed fabric database
-  const [savedFabrics, setSavedFabrics] = useState<any[]>(() => {
-    const stored = localStorage.getItem('yaver_saved_fabrics');
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          return parsed.map((f: any) => ({
-            fabricCode: f.fabricCode,
-            pool: f.pool || 'B',
-            width: f.width ?? 140,
-            barcode: f.barcode ?? '',
-            fabricName: f.fabricName ?? ''
-          }));
-        }
-      } catch (e) {
-        console.error("Failed to parse saved fabrics", e);
-      }
-    }
-    return [
-      { fabricCode: 'COLOR 1', pool: 'B', width: 140, barcode: '868000100011', fabricName: 'Gri Buldan Keten' },
-      { fabricCode: 'COLOR 1', pool: 'D', width: 140, barcode: '868000100012', fabricName: 'Kırmızı Buldan Keten' },
-      { fabricCode: 'COLOR 10', pool: 'B', width: 140, barcode: '868000100021', fabricName: 'Gri Keten (Berkay)' },
-      { fabricCode: 'COLOR 10', pool: 'D', width: 140, barcode: '868000100022', fabricName: 'Kırmızı Keten (Doğukan)' },
-    ];
-  });
-
-  // Local storage backed unified fabric catalog (Ana Kumaş Kütüphanesi)
-  const [unifiedFabrics, setUnifiedFabrics] = useState<any[]>(() => {
-    const stored = localStorage.getItem('yaver_unified_fabrics');
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch (e) {
-        console.error("Failed to parse unified fabrics", e);
-      }
-    }
-    return [
-      {
-        barcode: '868000100011',
-        fabricName: 'Gri Buldan Keten',
-        berkayCode: 'COLOR 1',
-        dogukanCode: '',
-        stock: 45.5
-      },
-      {
-        barcode: '868000100012',
-        fabricName: 'Kırmızı Buldan Keten',
-        berkayCode: '',
-        dogukanCode: 'COLOR 1',
-        stock: 120
-      }
-    ];
-  });
-
-  // Custom tabaka sizes stored in localStorage for persistence
-  const [sheetSizes, setSheetSizes] = useState<any>(() => {
-    const stored = localStorage.getItem('yaver_sponge_sheet_sizes_v2');
-    try {
-      return stored ? JSON.parse(stored) : {
-        '5': { width: 140, height: 240 },
-        '8': { width: 140, height: 240 },
-        '10': { width: 140, height: 240 },
-        'other': { width: 140, height: 240 }
-      };
-    } catch {
-      return {
-        '5': { width: 140, height: 240 },
-        '8': { width: 140, height: 240 },
-        '10': { width: 140, height: 240 },
-        'other': { width: 140, height: 240 }
-      };
-    }
-  });
 
   // Data Backup & Recovery States
   const [uploadedBackupData, setUploadedBackupData] = useState<any | null>(null);
@@ -434,146 +326,23 @@ export default function App() {
   const [accountingProducer, setAccountingProducer] = useState('All');
   const [selectedBulkOrderIds, setSelectedBulkOrderIds] = useState<string[]>([]);
 
-  const lastFirestoreOrdersRef = React.useRef<string>('');
-  const lastFirestoreLogsRef = React.useRef<string>('');
-  const lastFirestoreUsersRef = React.useRef<string>('');
-  const lastFirestorePrinterRef = React.useRef<string>('');
-  const lastFirestorePricesRef = React.useRef<string>('');
-  const lastFirestoreFabricsRef = React.useRef<string>('');
-  const lastFirestoreSpongeRef = React.useRef<string>('');
-
-  useEffect(() => {
-    // 1. Run one-time initial seed function to push localStorage data to Firestore if Firebase has no orders
-    checkAndSeedLocalStorageToFirestore();
-
-    // 2. Subscribe to Users
-    const unsubUsers = subscribeUsers((firestoreUsers) => {
-      const serialized = JSON.stringify(firestoreUsers);
-      lastFirestoreUsersRef.current = serialized;
-      setUsers(firestoreUsers);
-    });
-
-    // 3. Subscribe to Orders
-    const unsubOrders = subscribeOrders((firestoreOrders) => {
-      const serialized = JSON.stringify(firestoreOrders);
-      lastFirestoreOrdersRef.current = serialized;
-      setOrders(firestoreOrders);
-    });
-
-    // 4. Subscribe to Logs
-    const unsubLogs = subscribeLogs((firestoreLogs) => {
-      const serialized = JSON.stringify(firestoreLogs);
-      lastFirestoreLogsRef.current = serialized;
-      setLogs(firestoreLogs);
-    });
-
-    // 5. Subscribe to Printer Settings
-    const unsubPrinter = subscribeSettings('printer', (data) => {
-      if (data) {
-        const serialized = JSON.stringify(data);
-        lastFirestorePrinterRef.current = serialized;
-        setPrintSettings(data);
-      }
-    });
-
-    // 6. Subscribe to Producer Prices
-    const unsubPrices = subscribeSettings('prices', (data) => {
-      if (data && data.values) {
-        const serialized = JSON.stringify(data.values);
-        lastFirestorePricesRef.current = serialized;
-        setProducerPrices(data.values);
-      }
-    });
-
-    // 7. Subscribe to Fabrics
-    const unsubFabrics = subscribeSettings('fabrics', (data) => {
-      if (data) {
-        const serialized = JSON.stringify(data);
-        lastFirestoreFabricsRef.current = serialized;
-        if (data.savedFabrics) setSavedFabrics(data.savedFabrics);
-        if (data.unifiedFabrics) setUnifiedFabrics(data.unifiedFabrics);
-      }
-    });
-
-    // 8. Subscribe to Sponge Sizes
-    const unsubSponge = subscribeSettings('sponge', (data) => {
-      if (data && data.sheetSizes) {
-        const serialized = JSON.stringify(data.sheetSizes);
-        lastFirestoreSpongeRef.current = serialized;
-        setSheetSizes(data.sheetSizes);
-      }
-    });
-
-    return () => {
-      unsubUsers();
-      unsubOrders();
-      unsubLogs();
-      unsubPrinter();
-      unsubPrices();
-      unsubFabrics();
-      unsubSponge();
-    };
-  }, []);
-
   // Keep localStorage perfectly synchronized whenever states undergo modification
   useEffect(() => {
     localStorage.setItem('yaver_active_orders', JSON.stringify(orders));
-    const serialized = JSON.stringify(orders);
-    if (serialized !== lastFirestoreOrdersRef.current) {
-      lastFirestoreOrdersRef.current = serialized;
-      saveOrdersInBatch(orders);
-    }
   }, [orders]);
 
   useEffect(() => {
     localStorage.setItem('yaver_order_history', JSON.stringify(logs));
-    const serialized = JSON.stringify(logs);
-    if (serialized !== lastFirestoreLogsRef.current) {
-      lastFirestoreLogsRef.current = serialized;
-      saveLogsInBatch(logs);
-    }
   }, [logs]);
 
   useEffect(() => {
     localStorage.setItem('yaver_print_settings', JSON.stringify(printSettings));
-    const serialized = JSON.stringify(printSettings);
-    if (serialized !== lastFirestorePrinterRef.current) {
-      lastFirestorePrinterRef.current = serialized;
-      savePrintSettingsInFirestore(printSettings);
-    }
   }, [printSettings]);
 
   // Sync users to localStorage
   useEffect(() => {
     localStorage.setItem('yaver_users', JSON.stringify(users));
-    const serialized = JSON.stringify(users);
-    if (serialized !== lastFirestoreUsersRef.current) {
-      lastFirestoreUsersRef.current = serialized;
-      saveUsersInBatch(users);
-    }
   }, [users]);
-
-  // Sync fabrics to localStorage & Firestore
-  useEffect(() => {
-    localStorage.setItem('yaver_saved_fabrics', JSON.stringify(savedFabrics));
-    localStorage.setItem('yaver_unified_fabrics', JSON.stringify(unifiedFabrics));
-    const combined = { savedFabrics, unifiedFabrics };
-    const serialized = JSON.stringify(combined);
-    if (serialized !== lastFirestoreFabricsRef.current) {
-      lastFirestoreFabricsRef.current = serialized;
-      saveFabricsInFirestore(savedFabrics, unifiedFabrics);
-    }
-  }, [savedFabrics, unifiedFabrics]);
-
-  // Sync sheet sizes to localStorage & Firestore
-  useEffect(() => {
-    localStorage.setItem('yaver_sponge_sheet_sizes_v2', JSON.stringify(sheetSizes));
-    const serialized = JSON.stringify(sheetSizes);
-    if (serialized !== lastFirestoreSpongeRef.current) {
-      lastFirestoreSpongeRef.current = serialized;
-      saveSpongeSizesInFirestore(sheetSizes);
-    }
-  }, [sheetSizes]);
 
   // Sync current user and ensure they stay within permitted views
   useEffect(() => {
@@ -622,16 +391,7 @@ export default function App() {
     e.preventDefault();
     if (!loginUsername.trim() || !loginPassword) return;
 
-    const targetUserNorm = normalizeText(loginUsername);
-    const targetPassword = loginPassword.trim();
-
-    const foundUser = users.find(u => {
-      if (!u || !u.username) return false;
-      const uUserNorm = normalizeText(u.username);
-      const uPassword = String(u.password || '').trim();
-      return uUserNorm === targetUserNorm && uPassword === targetPassword;
-    });
-
+    const foundUser = users.find(u => u.username.toLowerCase() === loginUsername.trim().toLowerCase() && u.password === loginPassword);
     if (foundUser) {
       setCurrentUser({ username: foundUser.username, role: foundUser.role });
       setLoginUsername('');
@@ -668,19 +428,15 @@ export default function App() {
     const targetUsername = newUserUsername.trim();
     if (editingUserId) {
       // Update existing user
-      setUsers(prev => {
-        const next = prev.map(u => u.id === editingUserId ? {
-          ...u,
-          username: targetUsername,
-          password: newUserPassword.trim(),
-          role: newUserRole
-        } : u);
-        localStorage.setItem('yaver_users', JSON.stringify(next));
-        return next;
-      });
+      setUsers(prev => prev.map(u => u.id === editingUserId ? {
+        ...u,
+        username: targetUsername,
+        password: newUserPassword.trim(),
+        role: newUserRole
+      } : u));
       
       // If updating oneself, update active session state as well
-      if (editingUserId === users.find(u => u && u.username && normalizeText(u.username) === normalizeText(currentUser?.username || ''))?.id) {
+      if (editingUserId === users.find(u => u.username === currentUser?.username)?.id) {
         setCurrentUser({ username: targetUsername, role: newUserRole });
       }
 
@@ -688,7 +444,7 @@ export default function App() {
       setTimeout(() => setToast(null), 3000);
     } else {
       // Create new user
-      const exists = users.some(u => u && u.username && normalizeText(u.username) === normalizeText(targetUsername));
+      const exists = users.some(u => u.username.toLowerCase() === targetUsername.toLowerCase());
       if (exists) {
         setToast({ message: 'Bu kullanıcı adı zaten kullanılıyor.', type: 'error' });
         setTimeout(() => setToast(null), 3000);
@@ -701,11 +457,7 @@ export default function App() {
         password: newUserPassword.trim(),
         role: newUserRole
       };
-      setUsers(prev => {
-        const next = [...prev, newUser];
-        localStorage.setItem('yaver_users', JSON.stringify(next));
-        return next;
-      });
+      setUsers(prev => [...prev, newUser]);
       setToast({ message: 'Yeni kullanıcı başarıyla eklendi.', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     }
@@ -739,11 +491,7 @@ export default function App() {
       'Kullanıcıyı Sil',
       `"${userToDelete.username}" isimli kullanıcıyı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
       () => {
-        setUsers(prev => {
-          const next = prev.filter(u => u.id !== userId);
-          localStorage.setItem('yaver_users', JSON.stringify(next));
-          return next;
-        });
+        setUsers(prev => prev.filter(u => u.id !== userId));
         setToast({ message: 'Kullanıcı sistemden tamamen kaldırıldı.', type: 'error' });
         setTimeout(() => setToast(null), 3000);
       }
@@ -2435,14 +2183,7 @@ export default function App() {
           )}
 
           {activeTab === 'calculator' && (
-            <FabricCalculator 
-              orders={filteredOrders} 
-              onOpenMenu={() => setIsMobileSidebarOpen(true)} 
-              savedFabrics={savedFabrics}
-              setSavedFabrics={setSavedFabrics}
-              unifiedFabrics={unifiedFabrics}
-              setUnifiedFabrics={setUnifiedFabrics}
-            />
+            <FabricCalculator orders={filteredOrders} onOpenMenu={() => setIsMobileSidebarOpen(true)} />
           )}
 
           {activeTab === 'workshop' && (
@@ -2457,12 +2198,7 @@ export default function App() {
           )}
 
           {activeTab === 'sponge' && (
-            <SpongeCalculator 
-              orders={orders} 
-              onOpenMenu={() => setIsMobileSidebarOpen(true)} 
-              sheetSizes={sheetSizes}
-              setSheetSizes={setSheetSizes}
-            />
+            <SpongeCalculator orders={orders} onOpenMenu={() => setIsMobileSidebarOpen(true)} />
           )}
 
           {activeTab === 'supply' && (

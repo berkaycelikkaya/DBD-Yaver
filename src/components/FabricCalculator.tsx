@@ -50,10 +50,6 @@ interface FabricDefinition {
 interface FabricCalculatorProps {
   orders: Order[];
   onOpenMenu?: () => void;
-  savedFabrics: FabricDefinition[];
-  setSavedFabrics: React.Dispatch<React.SetStateAction<FabricDefinition[]>>;
-  unifiedFabrics: UnifiedFabric[];
-  setUnifiedFabrics: React.Dispatch<React.SetStateAction<UnifiedFabric[]>>;
 }
 
 /**
@@ -76,14 +72,7 @@ function sanitizeText(text: string): string {
     .replace(/Ü/g, 'U');
 }
 
-export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ 
-  orders, 
-  onOpenMenu,
-  savedFabrics,
-  setSavedFabrics,
-  unifiedFabrics,
-  setUnifiedFabrics
-}) => {
+export const FabricCalculator: React.FC<FabricCalculatorProps> = ({ orders, onOpenMenu }) => {
   // Navigation: Requirements summary analysis vs fabric database catalog
   const [activeSubTab, setActiveSubTab] = useState<'analysis' | 'database' | 'unified'>(() => {
     return orders && orders.length > 0 ? 'analysis' : 'unified';
@@ -106,6 +95,64 @@ export const FabricCalculator: React.FC<FabricCalculatorProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [dbSearchQuery, setDbSearchQuery] = useState('');
 
+  // Local storage backed fabric database
+  const [savedFabrics, setSavedFabrics] = useState<FabricDefinition[]>(() => {
+    const stored = localStorage.getItem('yaver_saved_fabrics');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        // Map old structure if any (missing pool field) to default pool 'B'
+        if (Array.isArray(parsed)) {
+          return parsed.map((f: any) => ({
+            fabricCode: f.fabricCode,
+            pool: f.pool || 'B',
+            width: f.width ?? 140,
+            barcode: f.barcode ?? '',
+            fabricName: f.fabricName ?? ''
+          }));
+        }
+      } catch (e) {
+        console.error("Failed to parse saved fabrics", e);
+      }
+    }
+    // Beautiful default boilerplate dataset mapped exactly with the user's example
+    return [
+      { fabricCode: 'COLOR 1', pool: 'B', width: 140, barcode: '868000100011', fabricName: 'Gri Buldan Keten' },
+      { fabricCode: 'COLOR 1', pool: 'D', width: 140, barcode: '868000100012', fabricName: 'Kırmızı Buldan Keten' },
+      { fabricCode: 'COLOR 10', pool: 'B', width: 140, barcode: '868000100021', fabricName: 'Gri Keten (Berkay)' },
+      { fabricCode: 'COLOR 10', pool: 'D', width: 140, barcode: '868000100022', fabricName: 'Kırmızı Keten (Doğukan)' },
+    ];
+  });
+
+  // Local storage backed unified fabric catalog (Ana Kumaş Kütüphanesi)
+  const [unifiedFabrics, setUnifiedFabrics] = useState<UnifiedFabric[]>(() => {
+    const stored = localStorage.getItem('yaver_unified_fabrics');
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        console.error("Failed to parse unified fabrics", e);
+      }
+    }
+    // Beautiful default unified dataset to match the default boilerplate nicely
+    return [
+      {
+        barcode: '868000100011',
+        fabricName: 'Gri Buldan Keten',
+        berkayCode: 'COLOR 1',
+        dogukanCode: '',
+        stock: 45.5
+      },
+      {
+        barcode: '868000100012',
+        fabricName: 'Kırmızı Buldan Keten',
+        berkayCode: '',
+        dogukanCode: 'COLOR 1',
+        stock: 12.0
+      }
+    ];
+  });
+
   // Fabric addition form state
   const [newFabricCode, setNewFabricCode] = useState('');
   const [newFabricPool, setNewFabricPool] = useState<'B' | 'D'>('B');
@@ -123,6 +170,16 @@ export const FabricCalculator: React.FC<FabricCalculatorProps> = ({
   const [quickInputs, setQuickInputs] = useState<{ 
     [key: string]: { barcode: string; name: string } 
   }>({});
+
+  // Sync savedFabrics to localStorage on modification
+  useEffect(() => {
+    localStorage.setItem('yaver_saved_fabrics', JSON.stringify(savedFabrics));
+  }, [savedFabrics]);
+
+  // Sync unifiedFabrics to localStorage on modification
+  useEffect(() => {
+    localStorage.setItem('yaver_unified_fabrics', JSON.stringify(unifiedFabrics));
+  }, [unifiedFabrics]);
 
   // Synchronize savedFabrics and unifiedFabrics so mapping is always consistent and automatic
   // 1) When savedFabrics changes, copy any new/updated fabrics to unifiedFabrics

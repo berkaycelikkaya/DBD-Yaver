@@ -29,8 +29,6 @@ interface Order {
 interface SpongeCalculatorProps {
   orders: Order[];
   onOpenMenu?: () => void;
-  sheetSizes: { [key: string]: SheetSize };
-  setSheetSizes: React.Dispatch<React.SetStateAction<{ [key: string]: SheetSize }>>;
 }
 
 interface PlacedRect {
@@ -102,17 +100,37 @@ function sanitizeText(text: string): string {
     .replace(/Ü/g, 'U');
 }
 
-export const SpongeCalculator: React.FC<SpongeCalculatorProps> = ({ 
-  orders, 
-  onOpenMenu,
-  sheetSizes,
-  setSheetSizes
-}) => {
+export const SpongeCalculator: React.FC<SpongeCalculatorProps> = ({ orders, onOpenMenu }) => {
   // Group tab states: 5 cm, 8 cm, 10 cm, Other
   const [activeThickness, setActiveThickness] = useState<string>('10');
 
   // Hover item ID state to link SVG visual with list card
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+
+  // Custom tabaka sizes stored in localStorage for persistence
+  const [sheetSizes, setSheetSizes] = useState<{ [key: string]: SheetSize }>(() => {
+    const stored = localStorage.getItem('yaver_sponge_sheet_sizes_v2');
+    try {
+      return stored ? JSON.parse(stored) : {
+        '5': { width: 140, height: 240 },
+        '8': { width: 140, height: 240 },
+        '10': { width: 140, height: 240 },
+        'other': { width: 140, height: 240 }
+      };
+    } catch {
+      return {
+        '5': { width: 140, height: 240 },
+        '8': { width: 140, height: 240 },
+        '10': { width: 140, height: 240 },
+        'other': { width: 140, height: 240 }
+      };
+    }
+  });
+
+  // Sync sheet sizes to local storage
+  useEffect(() => {
+    localStorage.setItem('yaver_sponge_sheet_sizes_v2', JSON.stringify(sheetSizes));
+  }, [sheetSizes]);
 
   // Predefined quick size options to swap quickly
   const PRESET_SIZES = [
