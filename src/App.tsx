@@ -90,6 +90,20 @@ interface SavedLog {
   producerName?: string;
 }
 
+const normalizeText = (str: string): string => {
+  if (!str) return '';
+  return str
+    .trim()
+    .toLowerCase()
+    .replace(/ı/g, 'i')
+    .replace(/ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/ş/g, 's')
+    .replace(/ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .replace(/i̇/g, 'i'); // handles combined dotted i
+};
+
 export default function App() {
   // Sync core state with local storage right on initialization for maximum reliability
   const [orders, setOrders] = useState<Order[]>(() => {
@@ -193,7 +207,7 @@ export default function App() {
         { id: '4', username: 'tedarik', password: '123', role: 'Tedarik' }
       ];
     } else {
-      const berkayIndex = loadedUsers.findIndex(u => u.username.toLowerCase() === 'berkay');
+      const berkayIndex = loadedUsers.findIndex(u => u && u.username && normalizeText(u.username) === 'berkay');
       if (berkayIndex > -1) {
         loadedUsers[berkayIndex].password = '159951';
         loadedUsers[berkayIndex].role = 'Admin';
@@ -391,7 +405,16 @@ export default function App() {
     e.preventDefault();
     if (!loginUsername.trim() || !loginPassword) return;
 
-    const foundUser = users.find(u => u.username.toLowerCase() === loginUsername.trim().toLowerCase() && u.password === loginPassword);
+    const targetUserNorm = normalizeText(loginUsername);
+    const targetPassword = loginPassword.trim();
+
+    const foundUser = users.find(u => {
+      if (!u || !u.username) return false;
+      const uUserNorm = normalizeText(u.username);
+      const uPassword = String(u.password || '').trim();
+      return uUserNorm === targetUserNorm && uPassword === targetPassword;
+    });
+
     if (foundUser) {
       setCurrentUser({ username: foundUser.username, role: foundUser.role });
       setLoginUsername('');
@@ -428,15 +451,19 @@ export default function App() {
     const targetUsername = newUserUsername.trim();
     if (editingUserId) {
       // Update existing user
-      setUsers(prev => prev.map(u => u.id === editingUserId ? {
-        ...u,
-        username: targetUsername,
-        password: newUserPassword.trim(),
-        role: newUserRole
-      } : u));
+      setUsers(prev => {
+        const next = prev.map(u => u.id === editingUserId ? {
+          ...u,
+          username: targetUsername,
+          password: newUserPassword.trim(),
+          role: newUserRole
+        } : u);
+        localStorage.setItem('yaver_users', JSON.stringify(next));
+        return next;
+      });
       
       // If updating oneself, update active session state as well
-      if (editingUserId === users.find(u => u.username === currentUser?.username)?.id) {
+      if (editingUserId === users.find(u => u && u.username && normalizeText(u.username) === normalizeText(currentUser?.username || ''))?.id) {
         setCurrentUser({ username: targetUsername, role: newUserRole });
       }
 
@@ -444,7 +471,7 @@ export default function App() {
       setTimeout(() => setToast(null), 3000);
     } else {
       // Create new user
-      const exists = users.some(u => u.username.toLowerCase() === targetUsername.toLowerCase());
+      const exists = users.some(u => u && u.username && normalizeText(u.username) === normalizeText(targetUsername));
       if (exists) {
         setToast({ message: 'Bu kullanıcı adı zaten kullanılıyor.', type: 'error' });
         setTimeout(() => setToast(null), 3000);
@@ -457,7 +484,11 @@ export default function App() {
         password: newUserPassword.trim(),
         role: newUserRole
       };
-      setUsers(prev => [...prev, newUser]);
+      setUsers(prev => {
+        const next = [...prev, newUser];
+        localStorage.setItem('yaver_users', JSON.stringify(next));
+        return next;
+      });
       setToast({ message: 'Yeni kullanıcı başarıyla eklendi.', type: 'error' });
       setTimeout(() => setToast(null), 3000);
     }
@@ -491,7 +522,11 @@ export default function App() {
       'Kullanıcıyı Sil',
       `"${userToDelete.username}" isimli kullanıcıyı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
       () => {
-        setUsers(prev => prev.filter(u => u.id !== userId));
+        setUsers(prev => {
+          const next = prev.filter(u => u.id !== userId);
+          localStorage.setItem('yaver_users', JSON.stringify(next));
+          return next;
+        });
         setToast({ message: 'Kullanıcı sistemden tamamen kaldırıldı.', type: 'error' });
         setTimeout(() => setToast(null), 3000);
       }
